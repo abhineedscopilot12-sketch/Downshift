@@ -117,7 +117,7 @@ async def baseline():  # Tavily runtime call: evidence for the closed-model pric
     q = os.getenv("BASELINE_QUERY", "GPT-4o API pricing per million tokens")
     try:
         async with httpx.AsyncClient(timeout=30) as c:
-            r = (await c.post("https://api.tavily.com/search", headers={"Authorization": f"Bearer {k}"}, json={"query": q, "max_results": 1})).json()
+            r = (await c.post("https://api.tavily.com/search", headers={"Authorization": f"Bearer {k}"}, json={"query": q, "max_results": 1, "include_domains": [os.getenv("BASELINE_DOMAIN", "openai.com")]})).json()
         x = r["results"][0]; return dict(query=q, title=x["title"], url=x["url"], snippet=x["content"][:300])
     except Exception as e:
         print("Tavily error:", repr(e)[:150], file=sys.stderr); return None

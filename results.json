@@ -75,9 +75,9 @@
   "q1572 (mcq): The Manager answered with total confidence and was wrong \u274c"
  ],
  "baseline": {
-  "query": "GPT-4o API pricing per million tokens",
-  "title": "OpenAI unveils GPT-4o mini, a small AI model powering ChatGPT",
-  "url": "https://finance.yahoo.com/news/openai-unveils-gpt-4o-mini-153423674.html",
-  "snippet": "For developers building on OpenAI's API, GPT4o mini is priced at 15 cents per million input tokens and 60 cents per million output tokens. The model has a context window of 128,000 tokens, roughly the length of a book, and a knowledge cutoff of October 2023."
+  "query": "OpenAI API pricing per million tokens",
+  "title": "Advancing the price-performance frontier with GPT-5.6 | OpenAI",
+  "url": "https://openai.com/index/advancing-the-price-performance-frontier-with-gpt-5-6",
+  "snippet": "Starting July 30, API pricing is $2 per million input tokens and $12 per million output tokens for Terra, and $0.20 per million input tokens and $1.20 per million output tokens for Luna. Sol pricing remains unchanged. ChatGPT and Codex subscription prices and quota budgets remain unchanged, while Te"
  }
 }
