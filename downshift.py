@@ -32,13 +32,16 @@ def canon(r, out):
         j = parse_json(out)
         if not j or not all(k in j for k in r["expected"]): return None
         return json.dumps({k: str(j[k]).strip().lower() for k in r["expected"]}, sort_keys=True)
+    if t == "mcq":
+        m = re.findall(r"ANSWER:\s*\(?([A-J])\b", out or "")
+        return m[-1] if m else None
     m = re.findall(r"ANSWER:\s*\$?(-?[\d,]*\.?\d+)", out or "")
     return float(m[-1].replace(",", "")) if m else None
 
 def gold(r, out):
     c = canon(r, out)
     if c is None: return False
-    if r["task"] == "classify": return c == r["expected"]
+    if r["task"] in ("classify", "mcq"): return c == r["expected"]
     if r["task"] == "extract": return json.loads(c) == {k: str(v).strip().lower() for k, v in r["expected"].items()}
     return abs(c - r["expected"]) < 1e-6
 
@@ -48,11 +51,11 @@ async def call(cli, sem, model, prompt, temp):
         for i in range(4):
             try:
                 t0 = time.time()
-                r = await cli.chat.completions.create(model=model, temperature=temp, max_tokens=1024,
+                r = await cli.chat.completions.create(model=model, temperature=temp, max_tokens=int(os.getenv("MAX_TOKENS", "4096")),
                     messages=[{"role": "system", "content": SYS}, {"role": "user", "content": prompt}])
-                return r.choices[0].message.content or "", r.usage.prompt_tokens, r.usage.completion_tokens, time.time() - t0
+                return r.choices[0].message.content or "", r.usage.prompt_tokens, r.usage.completion_tokens, time.time() - t0, r.choices[0].finish_reason
             except Exception as e:
-                if i == 3: print("API error:", repr(e)[:200], file=sys.stderr); return "", 0, 0, 0.0
+                if i == 3: print("API error:", repr(e)[:200], file=sys.stderr); return "", 0, 0, 0.0, "error"
                 await asyncio.sleep(2 ** i)
 
 async def replay(rows):
@@ -63,12 +66,12 @@ async def replay(rows):
         for i, tr in enumerate(TIERS):
             last = i == len(TIERS) - 1
             jobs = [call(cli, sem, tr["model"], r["prompt"], 0)] + ([] if last else [call(cli, sem, tr["model"], r["prompt"], .8)])
-            (o, pi, po, lat), *rest = await asyncio.gather(*jobs)
+            (o, pi, po, lat, fr), *rest = await asyncio.gather(*jobs)
             cost = (pi * tr["pin"] + po * tr["pout"]) / 1e6; gcost = 0; gate = True
             if rest:  # confidence gate: valid format AND second sample agrees. Never peeks at the gold answer.
-                o2, pi2, po2, l2 = rest[0]; gcost = (pi2 * tr["pin"] + po2 * tr["pout"]) / 1e6; lat = max(lat, l2)
+                o2, pi2, po2, l2, _ = rest[0]; gcost = (pi2 * tr["pin"] + po2 * tr["pout"]) / 1e6; lat = max(lat, l2)
                 gate = canon(r, o) is not None and canon(r, o) == canon(r, o2)
-            t[tr["key"]] = dict(ok=gold(r, o), gate=gate, cost=cost, gcost=gcost, lat=lat, pi=pi, po=po)
+            t[tr["key"]] = dict(ok=gold(r, o), gate=gate, cost=cost, gcost=gcost, lat=lat, pi=pi, po=po, fr=fr, out=o[:200])
         done[0] += 1
         if done[0] % 20 == 0: print(f"  {done[0]}/{len(rows)} requests judged. The Intern is sweating.", flush=True)
         return dict(id=r["id"], task=r["task"], t=t)
@@ -122,6 +125,10 @@ async def baseline():  # Tavily runtime call: evidence for the closed-model pric
 # ---------- synthetic dataset with known answers ----------
 def gen(n=300, seed=7, path="data/sample.jsonl"):
     R = random.Random(seed); rows = []
+    MON = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    def fmt(d, st):
+        y, m, dd = d
+        return [f"{y}-{m:02d}-{dd:02d}", f"{MON[m-1]} {dd}, {y}", f"{dd} {MON[m-1][:3]} {y}", f"{dd:02d}/{m:02d}/{y % 100:02d} (DD/MM/YY)"][st]
     LAB = {"billing": ["I was charged twice this month", "my invoice amount looks wrong", "my refund never arrived"],
            "login": ["I can't sign in to my account", "the password reset email never arrives", "my 2FA code keeps failing"],
            "bug": ["the export button crashes the app", "the page freezes when I upload a file", "the dashboard shows a blank screen"],
@@ -130,29 +137,49 @@ def gen(n=300, seed=7, path="data/sample.jsonl"):
     NAMES = ["Priya Nair", "Tom Becker", "Aiko Tanaka", "Luis Ortega", "Meera Rao"]; CITIES = ["Pune", "Berlin", "Osaka", "Lisbon", "Austin"]
     for i in range(n // 3):
         lab = R.choice(list(LAB)); t = R.choice(LAB[lab])
-        if R.random() < .5: t = f"{R.choice(fluff)} {t}. {R.choice(fluff)} Also, nice weather today."
+        if R.random() < .5:
+            o = R.choice([l for l in LAB if l != lab])
+            t = f"{R.choice(fluff)} Earlier {R.choice(LAB[o])}, but that is sorted now. What is blocking me today: {t}. {R.choice(fluff)}"
+        elif R.random() < .5: t = f"{R.choice(fluff)} {t}. {R.choice(fluff)} Also, nice weather today."
         rows.append(dict(id=f"c{i}", task="classify", allowed=list(LAB), expected=lab,
-                         prompt=f"Classify this support ticket as one of {list(LAB)}. Reply with the label only.\n\n{t}"))
+                         prompt=f"Classify the customer's CURRENT unresolved issue as one of {list(LAB)}. Reply with the label only.\n\n{t}"))
     for i in range(n // 3):
-        nm, ct, amt = R.choice(NAMES), R.choice(CITIES), R.randrange(100, 9999)
-        d1, d2 = (f"2026-{R.randint(1, 12):02d}-{R.randint(1, 28):02d}" for _ in "ab")
-        t = (f"Invoice for {nm} ({ct}). Amount due: {amt} USD. Due: {d1}." if R.random() < .4 else
-             f"{nm} of {ct} ordered on {d2}. The first quote of {amt + R.randint(50, 500)} USD was revised down; the final amount is {amt} USD, payable by {d1}.")
-        rows.append(dict(id=f"e{i}", task="extract", expected=dict(name=nm, amount=str(amt), due_date=d1),
-                         prompt=f"Extract the final amount due and due date as JSON with keys name, amount (digits only), due_date (YYYY-MM-DD).\n\n{t}\n\nReply with JSON only."))
+        nm, ct, hard = R.choice(NAMES), R.choice(CITIES), R.random() < .5
+        sub = R.randrange(500, 9000); dep = R.randrange(100, sub // 2) if hard else 0
+        due = (2026, R.randint(1, 12), R.randint(1, 28)); oth = (2026, R.randint(1, 12), R.randint(1, 28))
+        if hard:
+            t = (f"{nm} of {ct} ordered on {fmt(oth, R.randrange(4))}. The first quote of {sub + R.randint(50, 500)} USD was revised. "
+                 f"Final subtotal: {sub} USD. A deposit of {dep} USD was already paid. Amount due is the subtotal minus the deposit, payable by {fmt(due, R.randrange(4))}.")
+        else: t = f"Invoice for {nm} ({ct}). Amount due: {sub} USD. Due: {fmt(due, 0)}."
+        rows.append(dict(id=f"e{i}", task="extract", expected=dict(name=nm, amount=str(sub - dep), due_date=fmt(due, 0)),
+                         prompt=f"Extract JSON with keys name (person's name only, no city), amount (digits only, the amount still due), due_date (YYYY-MM-DD).\n\n{t}\n\nReply with JSON only."))
     for i in range(n - 2 * (n // 3)):
-        v = R.randint(5, 40); s = f"A shop starts with {v} crates."
-        for _ in range(R.randint(2, 6)):
+        hard = R.random() < .5; v = R.randint(5, 40); s = f"A shop starts with {v} crates."
+        for _ in range(R.randint(9, 14) if hard else R.randint(2, 4)):
             op = R.choice("+-*/")
-            if op == "+": a = R.randint(2, 30); v += a; s += f" It receives {a} more crates."
+            if op == "+": a = R.randint(2, 60 if hard else 30); v += a; s += f" It receives {a} more crates."
             elif op == "-": a = R.randint(1, max(1, v // 2)); v -= a; s += f" It sells {a} crates."
-            elif op == "*": m = R.choice([2, 3]); v *= m; s += f" A promotion multiplies the stock by {m}."
+            elif op == "*": m = R.choice([2, 3, 5, 7] if hard else [2, 3]); v *= m; s += f" A promotion multiplies the stock by {m}."
             elif v % 2 == 0: v //= 2; s += " Half the crates move to a warehouse."
-        p, c = R.randint(2, 9), R.randint(2, 5)
+        p, c = (R.randint(12, 97), R.randint(13, 48)) if hard else (R.randint(2, 9), R.randint(2, 5))
         s += f" The shop has 3 cashiers and opens at 9am. Each remaining crate holds {p} apples worth {c} dollars each. What is the total value of the apples in the shop, in dollars? Think briefly, then finish with 'ANSWER: <number>'."
         rows.append(dict(id=f"m{i}", task="math", expected=v * p * c, prompt=s))
     R.shuffle(rows); os.makedirs("data", exist_ok=True)
-    open(path, "w").write("\n".join(json.dumps(r) for r in rows) + "\n"); print(f"Wrote {len(rows)} requests to {path}")
+    open(path, "w").write("\n".join(json.dumps(r) for r in rows) + "\n"); print(f"Wrote {len(rows)} requests to {path} (half easy, half hard)")
+
+def mmlu(n=120, seed=7, path="data/mmlu.jsonl"):
+    """Pull hard public MMLU-Pro questions (MIT license) through the Hugging Face datasets-server API."""
+    R = random.Random(seed); rows = []; per = 20
+    with httpx.Client(timeout=60) as c:
+        for o in R.sample(range(0, 12000, per), -(-n // per)):
+            r = c.get("https://datasets-server.huggingface.co/rows", params=dict(dataset="TIGER-Lab/MMLU-Pro", config="default", split="test", offset=o, length=per))
+            r.raise_for_status()
+            for x in r.json()["rows"]:
+                q = x["row"]; opts = "\n".join(f"{'ABCDEFGHIJ'[i]}. {t}" for i, t in enumerate(q["options"]))
+                rows.append(dict(id=f"q{q['question_id']}", task="mcq", expected=q["answer"],
+                                 prompt=f"Answer this {q['category']} question.\n\n{q['question']}\n\n{opts}\n\nThink step by step, then finish with 'ANSWER: <letter>'."))
+    R.shuffle(rows); rows = rows[:n]; os.makedirs("data", exist_ok=True)
+    open(path, "w").write("\n".join(json.dumps(r) for r in rows) + "\n"); print(f"Wrote {len(rows)} MMLU-Pro questions to {path}")
 
 # ---------- web app ----------
 app = FastAPI(); LIVE_MAX = 30; budget = [int(os.getenv("LIVE_BUDGET", "300"))]
@@ -165,7 +192,7 @@ def results():
     if not os.path.exists("results.json"): raise HTTPException(404, "Run: python downshift.py run data/sample.jsonl")
     return json.load(open("results.json"))
 
-def valid(r): return isinstance(r, dict) and {"id", "task", "prompt", "expected"} <= set(r) and r["task"] in ("classify", "extract", "math") and (r["task"] != "classify" or "allowed" in r)
+def valid(r): return isinstance(r, dict) and {"id", "task", "prompt", "expected"} <= set(r) and r["task"] in ("classify", "extract", "math", "mcq") and (r["task"] != "classify" or "allowed" in r)
 
 @app.post("/api/run")
 async def live(body: dict):
@@ -184,11 +211,12 @@ def main():
                 if "nemotron" in x.id.lower(): print(x.id)
         asyncio.run(m())
     elif c == "gen": gen()
+    elif c == "mmlu": mmlu(int(sys.argv[2]) if len(sys.argv) > 2 else 120)
     elif c == "run":
         rows = [json.loads(l) for l in open(sys.argv[2]) if l.strip()][:int(sys.argv[3]) if len(sys.argv) > 3 else None]
         async def go():
             print(f"The Intern, Manager and CEO are clocking in for {len(rows)} requests...")
-            out = build(await replay(rows), await baseline()); json.dump(out, open("results.json", "w"), indent=1)
+            res = await replay(rows); json.dump(res, open("debug.json", "w")); out = build(res, await baseline()); json.dump(out, open("results.json", "w"), indent=1)
             s = out["summary"]; print(f"Saved {s['saving_pct']:.0f}% | accuracy {s['cascade']['acc']:.1%} | shares {s['cascade']['share']} -> results.json")
         asyncio.run(go())
     elif c == "serve":

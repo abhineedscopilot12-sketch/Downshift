@@ -1,67 +1,78 @@
 {
  "summary": {
-  "n": 30,
+  "n": 300,
   "tiers": {
    "nano": {
     "label": "The Intern",
-    "acc": 0.9333333333333333,
-    "cost": 0.00132156,
-    "p50": 3.369178295135498,
-    "p95": 10.565865278244019
+    "acc": 0.8233333333333334,
+    "cost": 0.08222802,
+    "p50": 5.16398811340332,
+    "p95": 100.06989359855652
    },
    "super": {
     "label": "The Manager",
-    "acc": 1.0,
-    "cost": 0.0043257,
-    "p50": 1.7551097869873047,
-    "p95": 2.846012592315674
+    "acc": 0.87,
+    "cost": 0.2105181,
+    "p50": 6.276254892349243,
+    "p95": 35.1852171421051
    },
    "ultra": {
     "label": "The CEO",
-    "acc": 0.8333333333333334,
-    "cost": 0.020542,
-    "p50": 1.1744122505187988,
-    "p95": 2.0183956623077393
+    "acc": 0.8933333333333333,
+    "cost": 1.067757,
+    "p50": 1.880335807800293,
+    "p95": 17.493130207061768
    }
   },
   "cascade": {
-   "acc": 1.0,
-   "cost": 0.0036685199999999998,
-   "p50": 3.7015602588653564,
-   "p95": 10.565865278244019,
+   "acc": 0.8666666666666667,
+   "cost": 0.47439517999999997,
+   "p50": 5.199051380157471,
+   "p95": 135.83454275131226,
    "share": {
-    "nano": 0.9,
-    "super": 0.1,
-    "ultra": 0.0
+    "nano": 0.8666666666666667,
+    "super": 0.09666666666666666,
+    "ultra": 0.03666666666666667
    }
   },
-  "saving_pct": 82.14136890273586,
+  "saving_pct": 55.570866779613716,
   "closed": null,
   "by_task": {
    "classify": {
-    "n": 8,
+    "n": 44,
     "acc": 1.0,
-    "intern": 1.0
+    "intern": 0.9772727272727273
    },
    "extract": {
-    "n": 13,
-    "acc": 1.0,
-    "intern": 0.7692307692307693
-   },
-   "math": {
-    "n": 9,
+    "n": 55,
     "acc": 1.0,
     "intern": 1.0
+   },
+   "math": {
+    "n": 51,
+    "acc": 1.0,
+    "intern": 0.9411764705882353
+   },
+   "mcq": {
+    "n": 150,
+    "acc": 0.7333333333333333,
+    "intern": 0.76
    }
   }
  },
  "story": [
-  "e89 (extract): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
-  "e48 (extract): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
-  "e87 (extract): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
-  "m86 (math): The Intern handled it \u2705 The CEO stayed asleep.",
-  "e9 (extract): The Intern handled it \u2705 The CEO stayed asleep.",
-  "c87 (classify): The Intern handled it \u2705 The CEO stayed asleep."
+  "c91 (classify): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
+  "m11 (math): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
+  "m49 (math): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
+  "m21 (math): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
+  "q7663 (mcq): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
+  "e44 (extract): The Intern handled it \u2705 The CEO stayed asleep.",
+  "c9 (classify): The Intern handled it \u2705 The CEO stayed asleep.",
+  "m71 (math): The Intern handled it \u2705 The CEO stayed asleep.",
+  "q3213 (mcq): The Intern answered with total confidence and was wrong \u274c",
+  "q11194 (mcq): The Intern answered with total confidence and was wrong \u274c",
+  "q3200 (mcq): The Intern answered with total confidence and was wrong \u274c",
+  "q1572 (mcq): The Manager answered with total confidence and was wrong \u274c"
  ],
  "baseline": null
 }
