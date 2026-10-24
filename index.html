@@ -54,9 +54,9 @@ function render(d){
  $("#story").replaceChildren(...d.story.map(t=>{const l=document.createElement("li");l.textContent=t;return l}));
  if(d.baseline){$("#base").hidden=false;const p=$("#basetxt");p.textContent=d.baseline.snippet+" ";if(/^https:/.test(d.baseline.url)){const a=document.createElement("a");a.href=d.baseline.url;a.textContent=d.baseline.title;a.rel="noopener";p.append(a)}}
 }
-fetch("/api/results").then(r=>r.ok?r.json():Promise.reject()).then(render).catch(()=>$("#receipt").textContent="No bill yet. Run: python downshift.py run data/sample.jsonl");
+fetch("api/results").then(r=>r.ok?r:fetch("results.json")).then(r=>r.ok?r.json():Promise.reject()).then(render).catch(()=>$("#receipt").textContent="No bill yet. Run: python downshift.py run data/sample.jsonl");
 let txt="";$("#f").onchange=async e=>{txt=await e.target.files[0].text();$("#go").disabled=!txt};
 $("#go").onclick=async()=>{const b=$("#go");b.disabled=true;b.textContent="The Intern is sweating…";$("#err").textContent="";
- try{const r=await fetch("/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonl:txt})});const j=await r.json();if(!r.ok)throw new Error(j.detail||"Failed");render(j)}
+ try{const r=await fetch("api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonl:txt})});const j=await r.json().catch(()=>({detail:"Live runs need the server version. See the README for the live link."}));if(!r.ok)throw new Error(j.detail||"Failed");render(j)}
  catch(e){$("#err").textContent=e.message}b.textContent="Run on Token Factory";b.disabled=false};
 </script></body></html>
