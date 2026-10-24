@@ -74,5 +74,10 @@
   "q3200 (mcq): The Intern answered with total confidence and was wrong \u274c",
   "q1572 (mcq): The Manager answered with total confidence and was wrong \u274c"
  ],
- "baseline": null
+ "baseline": {
+  "query": "GPT-4o API pricing per million tokens",
+  "title": "OpenAI unveils GPT-4o mini, a small AI model powering ChatGPT",
+  "url": "https://finance.yahoo.com/news/openai-unveils-gpt-4o-mini-153423674.html",
+  "snippet": "For developers building on OpenAI's API, GPT4o mini is priced at 15 cents per million input tokens and 60 cents per million output tokens. The model has a context window of 128,000 tokens, roughly the length of a book, and a knowledge cutoff of October 2023."
+ }
 }
