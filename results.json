@@ -1,0 +1,67 @@
+{
+ "summary": {
+  "n": 30,
+  "tiers": {
+   "nano": {
+    "label": "The Intern",
+    "acc": 0.9333333333333333,
+    "cost": 0.00132156,
+    "p50": 3.369178295135498,
+    "p95": 10.565865278244019
+   },
+   "super": {
+    "label": "The Manager",
+    "acc": 1.0,
+    "cost": 0.0043257,
+    "p50": 1.7551097869873047,
+    "p95": 2.846012592315674
+   },
+   "ultra": {
+    "label": "The CEO",
+    "acc": 0.8333333333333334,
+    "cost": 0.020542,
+    "p50": 1.1744122505187988,
+    "p95": 2.0183956623077393
+   }
+  },
+  "cascade": {
+   "acc": 1.0,
+   "cost": 0.0036685199999999998,
+   "p50": 3.7015602588653564,
+   "p95": 10.565865278244019,
+   "share": {
+    "nano": 0.9,
+    "super": 0.1,
+    "ultra": 0.0
+   }
+  },
+  "saving_pct": 82.14136890273586,
+  "closed": null,
+  "by_task": {
+   "classify": {
+    "n": 8,
+    "acc": 1.0,
+    "intern": 1.0
+   },
+   "extract": {
+    "n": 13,
+    "acc": 1.0,
+    "intern": 0.7692307692307693
+   },
+   "math": {
+    "n": 9,
+    "acc": 1.0,
+    "intern": 1.0
+   }
+  }
+ },
+ "story": [
+  "e89 (extract): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
+  "e48 (extract): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
+  "e87 (extract): The Intern wasn't sure \u2192 The Manager nailed it \u2705",
+  "m86 (math): The Intern handled it \u2705 The CEO stayed asleep.",
+  "e9 (extract): The Intern handled it \u2705 The CEO stayed asleep.",
+  "c87 (classify): The Intern handled it \u2705 The CEO stayed asleep."
+ ],
+ "baseline": null
+}
